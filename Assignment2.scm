@@ -33,4 +33,63 @@
     
 ;(solution '(1 -5 4))
 ;(solution '(1 4 4))
-(solution '(1 -1 4))
+;(solution '(1 -1 4))
+
+(define start '((1 2 3) (4 5 6) (7 8 9) 
+                (1 4 7) (2 5 8) (3 6 9) 
+                (1 5 9) (3 5 7)))
+
+;(define (turn player)
+;    (print player " plays:")
+;    (let ((n (read)))
+;    (move n))
+;    )
+
+(define (test board)
+    (for-each (lambda (row) (print (car row) "|" (cadr row) "|" (caddr row) "\n_|_|_")) board))
+    
+(define (win? board)
+    (cond
+    ; Base - no win condition found
+    [(null? board) #f]
+    ; Win condition - 3 elements in a row
+    [(for-all (lambda (e) (eq? e (caar board))) (car board)) #t]
+    ; Check the reset of the board
+    [else (win? (cdr board))]))
+    
+(define (catsgame? board)
+    (cond
+    ; Base
+    [(null? board) #t]
+    ; Does a row exist that does not contain an X and an O?
+    []
+    [else (catsgame? (cdr board))]
+    )
+
+(let ((x (car l)))
+)
+
+; Return a board with all occurences of position 'n' replaced with the 'player'
+(define (move n player board)
+    (if (null? board) '()
+    (cons (map (lambda (e) (if (eq? e n) player e)) (car board)) (move n player (cdr board)))))
+    
+;(map and (lambda (l) (for-each (lambda (e) (eq? (car l) e)) l)) start) 
+
+;(move 1 'X start)
+    
+;(define (catsgame? board)
+;    )
+
+;(define (same l)
+;    (apply = l))
+
+;(define (tic-tac-toe players board)
+;    (if (win? board) (print (cadr players) " wins!")
+;    (turn (car players) board)
+;    (print board)
+;    (tic-tac-toe (cons (cadr players) (list (car players))) board)
+;    ))
+
+;(tic-tac-toe '(X O) start)
+
