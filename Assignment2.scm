@@ -37,16 +37,15 @@
 
 (define start '((1 2 3) (4 5 6) (7 8 9) 
                 (1 4 7) (2 5 8) (3 6 9) 
-                (1 5 9) (3 5 7)))
-
-;(define (turn player)
-;    (print player " plays:")
-;    (let ((n (read)))
-;    (move n))
-;    )
-
-(define (test board)
-    (for-each (lambda (row) (print (car row) "|" (cadr row) "|" (caddr row) "\n_|_|_")) board))
+                (1 5 9) (3 5 7))')
+    
+(define (print-row x l)
+; Takes in a row of numbers and the list l
+(let ((row (car l))) ;Row is the current about to be printed row
+    (cond ((eq? x 0) (print "\n")) ;if we are pointing to the end of the row, new line
+    ((eq? x 1) (print (car row) "|" (cadr row) "|" (caddr row) "\n | | "))
+    ;If we are about to print the last row, change the formatting so no _'s are printed
+        (else(and (print (car row) "|" (cadr row) "|" (caddr row) "\n_|_|_") (print-row (- x 1) (cdr l))))))) ; for all other rows print _|_|_ and call recursively
     
 (define (win? board)
     (cond
@@ -56,40 +55,20 @@
     [(for-all (lambda (e) (eq? e (caar board))) (car board)) #t]
     ; Check the reset of the board
     [else (win? (cdr board))]))
-    
-(define (catsgame? board)
-    (cond
-    ; Base
-    [(null? board) #t]
-    ; Does a row exist that does not contain an X and an O?
-    []
-    [else (catsgame? (cdr board))]
-    )
-
-(let ((x (car l)))
-)
 
 ; Return a board with all occurences of position 'n' replaced with the 'player'
 (define (move n player board)
     (if (null? board) '()
-    (cons (map (lambda (e) (if (eq? e n) player e)) (car board)) (move n player (cdr board)))))
+    (cons (map (lambda (e) (if (eq? e n) player e)) (car board)) (move n player (cdr board)))'))
     
-;(map and (lambda (l) (for-each (lambda (e) (eq? (car l) e)) l)) start) 
+(define (tic-tac-toe board players turns) ;The main game function to excecute all funtions/portions of the game
+    (cond
+    [(eq? turns 0) (print "Catsgame!")]
+    [(win? board) (print (cadr players) " wins!")]
+    [else (and (print (car players) " Enter a Position Number:") (let ((winning-squares (move (read) (car players) board)))
+    (and (print-row 3 winning-squares)
+    (tic-tac-toe winning-squares (cons (cadr players) (list (car players))) (- turns 1))
+    )))]))
 
-;(move 1 'X start)
-    
-;(define (catsgame? board)
-;    )
-
-;(define (same l)
-;    (apply = l))
-
-;(define (tic-tac-toe players board)
-;    (if (win? board) (print (cadr players) " wins!")
-;    (turn (car players) board)
-;    (print board)
-;    (tic-tac-toe (cons (cadr players) (list (car players))) board)
-;    ))
-
-;(tic-tac-toe '(X O) start)
+(tic-tac-toe start '(X O) 8') ;Turns is 8 which is the max # of moves before a cat's game
 
