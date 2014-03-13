@@ -18,13 +18,13 @@
                 (1 4 7) (2 5 8) (3 6 9) 
                 (1 5 9) (3 5 7))')
 
-(define (print-row x l)
+(define (print-board x l)
 ; Takes in a row of numbers and the list l
 (let ((row (car l))) ;Row is the current about to be printed row
     (cond ((eq? x 0) (print "\n")) ;if we are pointing to the end of the row, new line
     ((eq? x 1) (print (car row) "|" (cadr row) "|" (caddr row) "\n | | "))
     ;If we are about to print the last row, change the formatting so no _'s are printed
-        (else(and (print (car row) "|" (cadr row) "|" (caddr row) "\n_|_|_") (print-row (- x 1) (cdr l))))))) ; for all other rows print _|_|_ and call recursively
+        (else(and (print (car row) "|" (cadr row) "|" (caddr row) "\n_|_|_") (print-board (- x 1) (cdr l))))))) ; for all other rows print _|_|_ and call recursively
 
 (define (win? board)
     (cond
@@ -45,7 +45,7 @@
     [(eq? turns 0) (print "Catsgame!")]
     [(win? board) (print (cadr players) " wins!")]
     [else (and (print (car players) " Enter a Position Number:") (let ((winning-squares (move (read) (car players) board)))
-    (and (print-row 3 winning-squares)
+    (and (print-board 3 winning-squares)
     (tic-tac-toe winning-squares (cons (cadr players) (list (car players))) (- turns 1))
     )))]))
 
