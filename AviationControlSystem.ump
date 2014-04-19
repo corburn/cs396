@@ -10,7 +10,7 @@ class AviationControlSystem {
         AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
         acs.addAirport(airTrafficCtrl.getAirport());
 
-        Plane plane = new Plane(airTrafficCtrl.getAirport());
+        //Plane plane = new Plane(airTrafficCtrl.getAirport());
 
         //Airport a = acs.getAirport(0);
         //System.out.println(a.numberOfRunwaies());
@@ -47,11 +47,16 @@ class Passenger {
     int age;
 }
 
-class Crew {
+class AirCrew {
+}
+
+class GroundCrew {
 }
 
 class Plane {
-    1 -- 2..* Crew;
+    1 -- 2..* AirCrew;
+    Airline;
+    int flightNumber;
     float fuel;
     public boolean requestClearance(AirTrafficControl arg0){
         // TODO
@@ -60,37 +65,37 @@ class Plane {
     flight {
         Standby {
             entry / {
-                System.out.println("Standby");
+                System.out.println(this.getFlightFullName());
             }
             -> Board;
         }
         Board {
             entry / {
-                System.out.println("Board");
+                System.out.println(this.getFlightFullName());
             }
             -> TakeoffPipeline;
         }
         TakeoffPipeline {
             entry / {
-                System.out.println("Takeoff Pipeline");
+                System.out.println(this.getFlightFullName());
             }
             -> Transit;
         }
         Transit {
             entry / {
-                System.out.println("Transit");
+                System.out.println(this.getFlightFullName());
             }
             -> LandingPipeline;
         }
         LandingPipeline {
             entry / {
-                System.out.println("Landing Pipeline");
+                System.out.println(this.getFlightFullName());
             }
             -> Disembark;
         }
         Disembark {
             entry / {
-                System.out.println("Disembark");
+                System.out.println(this.getFlightFullName());
             }
             //-> Standby;
         }
@@ -98,6 +103,7 @@ class Plane {
 }
 
 class Runway {
+    1..* -- * GroundCrew;
     int capacity;
     status {
         Open {
