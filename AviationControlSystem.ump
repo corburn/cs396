@@ -1,4 +1,4 @@
-generate Java;
+//generate Java;
 namespace aviationcontrolsystem;
 
 //interface Personnel {
@@ -8,12 +8,12 @@ class AviationControlSystem {
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
-        
+
         acs.addAirport(new Airport("Here Name", "Here Place", 0, 5, acs));
         acs.addAirport(new Airport("There Name", "There Place", 0, 5, acs));
 
         Plane plane = new Plane("1234", 5);
-        
+
         System.out.println("End Simulation");
         // BUG: the simulation was not exiting without this statement
         System.exit(0);
@@ -42,6 +42,10 @@ class AirTrafficControl {
         }
         //TODO
         return false;
+    }
+    queued sm {
+        MonitorAirspace {
+        }
     }
 }
 
@@ -73,7 +77,7 @@ class Plane {
     1 -- * Passenger;
     // Aircraft Registration
     immutable registration;
-    immutable int capacity;
+    immutable int seats;
     // lazy because a private aircraft may not be associated with an airline
     lazy immutable airline;
     // Unscheduled general aviation will generally use registration
@@ -89,7 +93,7 @@ class Plane {
     private void printTransition(String event, String state) {
         System.out.println(this.toString() + " " + event + " " + state);
     }
-      Flight {
+    Flight {
         FlightPrep {
             entry / {
                 printTransition("entry", "FlightPrep");
