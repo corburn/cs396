@@ -4,62 +4,105 @@ namespace aviationcontrolsystem;
 //}
 
 class AviationControlSystem {
-  public static void main(String[] args) {
-    System.out.println("Initializing Aviation Control System Simulation");
-    AviationControlSystem acs = new AviationControlSystem();
-    AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
-    acs.addAirport(airTrafficCtrl.getAirport());
-    
-    Airport a = acs.getAirport(0);
-    System.out.println(a.numberOfRunwaies());
-    System.out.println("End Simulation");
-  }
-  1 -- * Airport;
+    public static void main(String[] args) {
+        System.out.println("Initializing Aviation Control System Simulation");
+        AviationControlSystem acs = new AviationControlSystem();
+        AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
+        acs.addAirport(airTrafficCtrl.getAirport());
+
+        Plane plane = new Plane(airTrafficCtrl.getAirport());
+
+        //Airport a = acs.getAirport(0);
+        //System.out.println(a.numberOfRunwaies());
+        System.out.println("End Simulation");
+    }
+    1 -- * Airport;
 }
 
 class Airport {
-  1 -- 1 AirTrafficControl;
-  1 -- 1..* Runway;
-  1..* -- * Plane;
+    1 -- 1 AirTrafficControl;
+    1 -- 1..* Runway;
+    1..* -- * Plane;
 }
 
-class AirTrafficControl {
-  
+class AirTrafficControl { 
 }
 
-class Runway {
-  int capacity;
-  status {
-  Open {
-    Free {
-      -> Occupied;
-    }
-    Occupied {
-    }
-  }
-  Closed {
-    Emergency {
-    }
-    Maintenance {
-    }
-  }
-  }
-//  * -> * Personnel;
+class Baggage {
+}
+
+class Cargo
+{
+}
+
+class Passenger
+{
+    1 -- * Baggage;
+    name;
+    int age;
 }
 
 class Plane {
-  flight {
-    Standby {
-      -> TakeoffPipeline;
+    public boolean requestClearance(AirTrafficControl arg0){
+        // TODO
+        return false;
     }
-    TakeoffPipeline {
-      -> Transit;
+    flight {
+        Standby {
+            entry / {
+                System.out.println("Standby");
+            }
+            -> Board;
+        }
+        Board {
+            entry / {
+                System.out.println("Board");
+            }
+            -> TakeoffPipeline;
+        }
+        TakeoffPipeline {
+            entry / {
+                System.out.println("Takeoff Pipeline");
+            }
+            -> Transit;
+        }
+        Transit {
+            entry / {
+                System.out.println("Transit");
+            }
+            -> LandingPipeline;
+        }
+        LandingPipeline {
+            entry / {
+                System.out.println("Landing Pipeline");
+            }
+            -> Disembark;
+        }
+        Disembark {
+            entry / {
+                System.out.println("Disembark");
+            }
+            //-> Standby;
+        }
     }
-    Transit {
-      -> LandingPipeline;
+}
+
+class Runway {
+    int capacity;
+    status {
+        Open {
+            Free {
+                -> Occupied;
+            }
+            Occupied {
+            }
+        }
+        Closed {
+            Emergency {
+            }
+            Maintenance {
+            }
+        }
     }
-    LandingPipeline {
-      -> Standby;
-    }
-  }
+    //  * -> * Personnel;
 }
