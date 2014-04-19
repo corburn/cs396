@@ -29,20 +29,30 @@ class AirTrafficControl {
 }
 
 class Baggage {
+  sm {
+    Open {
+        -> Closed;
+    }
+    Closed {
+    }
+  }
 }
 
-class Cargo
-{
+class Cargo {
 }
 
-class Passenger
-{
+class Passenger {
     1 -- * Baggage;
     name;
     int age;
 }
 
+class Crew {
+}
+
 class Plane {
+    1 -- 2..* Crew;
+    float fuel;
     public boolean requestClearance(AirTrafficControl arg0){
         // TODO
         return false;
@@ -99,8 +109,12 @@ class Runway {
         }
         Closed {
             Emergency {
+                -> ReadyToOpen;
             }
             Maintenance {
+                -> ReadyToOpen;
+            }
+            ReadyToOpen {
             }
         }
     }
