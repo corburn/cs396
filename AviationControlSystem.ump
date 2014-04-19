@@ -8,14 +8,12 @@ class AviationControlSystem {
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
-        //AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
+        
         acs.addAirport(new Airport("Here Name", "Here Place", 5, acs));
         acs.addAirport(new Airport("There Name", "There Place", 5, acs));
 
-        //Plane plane = new Plane(airTrafficCtrl.getAirport());
-
-        //Airport a = acs.getAirport(0);
-        //System.out.println(a.numberOfRunwaies());
+        //Plane plane = new Plane("Nowhere", "7057", 100.0, acs.getAirport(0));
+        
         System.out.println("End Simulation");
     }
     1 -- * Airport;
@@ -24,13 +22,20 @@ class AviationControlSystem {
 class Airport {
     1 -- 1 AirTrafficControl;
     1 -- 1..* Runway;
-    1..* -- * Plane;
     immutable name;
     immutable address;
+    lazy boolean isEmergency;
 }
 
 class AirTrafficControl {
     int timeout;
+    public boolean getClearance() {
+        if(this.getAirport().getIsEmergency()) {
+            return false;
+        }
+        //TODO
+        return false;
+    }
 }
 
 class Baggage {
@@ -41,9 +46,6 @@ class Baggage {
     Closed {
     }
   }
-}
-
-class Cargo {
 }
 
 class Passenger {
@@ -59,33 +61,52 @@ class GroundCrew {
 }
 
 class Plane {
+    1 -- * FlightPlan;
     1 -- 2..* AirCrew;
     1 -- * Passenger;
     airline;
-    int flightNumber;
-    float fuel;
-    public boolean requestClearance(AirTrafficControl arg0){
-        // TODO
-        return false;
-    }
-    flight {
+    flightNumber;
+    callsign;
+    double fuel;
+    // TODO AirTrafficControl.getClearance()
+    lazy boolean isCleared;
+    lazy boolean hasIce;
+      Flight {
         Standby {
             entry / {
                 System.out.println(this.getFlightFullName());
             }
-            -> Board;
+            -> FlightPrep;
+        }
+        FlightPrep {
+            entry / {
+                System.out.println(this.getFlightFullName());
+            }
+            isFlightReady() -> Board;
         }
         Board {
             entry / {
                 System.out.println(this.getFlightFullName());
             }
+            -> TakeoffPrep;
+        }
+        TakeoffPrep {
             -> TakeoffPipeline;
         }
         TakeoffPipeline {
             entry / {
                 System.out.println(this.getFlightFullName());
             }
-            -> Transit;
+            Standby {
+                [hasIce] -> DeIce;
+            }
+            DeIce {
+                // 15 minutes
+                after(15*60) [hasIce] -> DeIce;
+            }
+            takeoff() [isCleared] -> Transit;
+            takeoff() [!isCleared] -> TakeoffPrep;
+            //after(this.getAirport(0).getAirTrafficControl().getTimeout()) -> Standby;
         }
         Transit {
             entry / {
@@ -97,7 +118,7 @@ class Plane {
             entry / {
                 System.out.println(this.getFlightFullName());
             }
-            -> Disembark;
+            land() [isCleared] -> Disembark;
         }
         Disembark {
             entry / {
@@ -145,4 +166,10 @@ class Runway {
         }
     }
     //  * -> * Personnel;
+}
+
+class FlightPlan {
+    * -- 2..* Airport;
+    Airport origin;
+    Airport destination;
 }

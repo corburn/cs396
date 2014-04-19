@@ -28,7 +28,7 @@ gaze(['./watch.js', '**/*.ump'], function(err, watcher) {
         console.log(prgname + ': ' + filepath + ' was modified');
         async.series({
             generate: function(cb) {
-                var cmd = 'java -jar umple_1.20.0.3845.jar --generate Java --path ' + srcDir + ' *.ump';
+                var cmd = 'java -jar umple_1.20.0.3845.jar --path ' + srcDir + ' --generate Java *.ump';
                 console.log(prgname + ': generating Java...');
                 console.log(prgname + ': ' + cmd);
                 var child = exec(cmd, function (err, stdout, stderr) {
