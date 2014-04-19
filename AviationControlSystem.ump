@@ -1,0 +1,65 @@
+namespace aviationcontrolsystem;
+
+//interface Personnel {
+//}
+
+class AviationControlSystem {
+  public static void main(String[] args) {
+    System.out.println("Initializing Aviation Control System Simulation");
+    AviationControlSystem acs = new AviationControlSystem();
+    AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
+    acs.addAirport(airTrafficCtrl.getAirport());
+    
+    Airport a = acs.getAirport(0);
+    System.out.println(a.numberOfRunwaies());
+    System.out.println("End Simulation");
+  }
+  1 -- * Airport;
+}
+
+class Airport {
+  1 -- 1 AirTrafficControl;
+  1 -- 1..* Runway;
+  1..* -- * Plane;
+}
+
+class AirTrafficControl {
+  
+}
+
+class Runway {
+  int capacity;
+  status {
+  Open {
+    Free {
+      -> Occupied;
+    }
+    Occupied {
+    }
+  }
+  Closed {
+    Emergency {
+    }
+    Maintenance {
+    }
+  }
+  }
+//  * -> * Personnel;
+}
+
+class Plane {
+  flight {
+    Standby {
+      -> TakeoffPipeline;
+    }
+    TakeoffPipeline {
+      -> Transit;
+    }
+    Transit {
+      -> LandingPipeline;
+    }
+    LandingPipeline {
+      -> Standby;
+    }
+  }
+}
