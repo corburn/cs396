@@ -9,14 +9,20 @@ class AviationControlSystem {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
         
-        acs.addAirport(new Airport("Here Name", "Here Place", 5, acs));
-        acs.addAirport(new Airport("There Name", "There Place", 5, acs));
+        acs.addAirport(new Airport("Here Name", "Here Place", 0, 5, acs));
+        acs.addAirport(new Airport("There Name", "There Place", 0, 5, acs));
 
-        //Plane plane = new Plane("Nowhere", "7057", 100.0, acs.getAirport(0));
+        Plane plane = new Plane("1234", 5);
         
         System.out.println("End Simulation");
+        // BUG: the simulation was not exiting without this statement
+        System.exit(0);
     }
     1 -- * Airport;
+}
+
+
+class AirCrew {
 }
 
 class Airport {
@@ -24,6 +30,7 @@ class Airport {
     1 -- 1..* Runway;
     immutable name;
     immutable address;
+    immutable int altitude;
     lazy boolean isEmergency;
 }
 
@@ -39,13 +46,18 @@ class AirTrafficControl {
 }
 
 class Baggage {
-  sm {
-    Open {
-        -> Closed;
-    }
-    Closed {
-    }
-  }
+}
+
+class FlightPlan {
+    * -- 2..* Airport;
+    // Discovered UMPLE imports java.sql.Date when trying to define
+    // depend java.util.Date
+    // TODO associate departure and arrival times with each airport
+    Date start;
+    Date end;
+}
+
+class GroundCrew {
 }
 
 class Passenger {
@@ -54,75 +66,93 @@ class Passenger {
     int age;
 }
 
-class AirCrew {
-}
-
-class GroundCrew {
-}
-
 class Plane {
+    // TODO cancel/modify FlightPlan
     1 -- * FlightPlan;
     1 -- 2..* AirCrew;
     1 -- * Passenger;
-    airline;
-    flightNumber;
-    callsign;
-    double fuel;
+    // Aircraft Registration
+    immutable registration;
+    immutable int capacity;
+    // lazy because a private aircraft may not be associated with an airline
+    lazy immutable airline;
+    // Unscheduled general aviation will generally use registration
+    // Commercial operators will use ICAO airline designator and route number
+    flightCode = registration;
+    // Defaults to flight code but may be reassigned by Air Traffic Control
+    defaulted callsign = flightCode;
+    lazy double fuel;
+    lazy boolean isEmergency;
     // TODO AirTrafficControl.getClearance()
     lazy boolean isCleared;
     lazy boolean hasIce;
+    private void printTransition(String event, String state) {
+        System.out.println(this.toString() + " " + event + " " + state);
+    }
       Flight {
-        Standby {
-            entry / {
-                System.out.println(this.getFlightFullName());
-            }
-            -> FlightPrep;
-        }
         FlightPrep {
             entry / {
-                System.out.println(this.getFlightFullName());
+                printTransition("entry", "FlightPrep");
             }
-            isFlightReady() -> Board;
+            -> Board;
         }
         Board {
             entry / {
-                System.out.println(this.getFlightFullName());
+                printTransition("entry", "Board");
             }
-            -> TakeoffPrep;
+            [isEmergency] -> Disembark;
+            [!isEmergency] -> TakeoffPrep;
         }
         TakeoffPrep {
+            entry / {
+                printTransition("entry", "TakeoffPrep");
+            }
             -> TakeoffPipeline;
         }
         TakeoffPipeline {
             entry / {
-                System.out.println(this.getFlightFullName());
+                printTransition("entry", "TakeoffPipeline");
             }
             Standby {
+                entry / {
+                    printTransition("entry", "Standby");
+                }
                 [hasIce] -> DeIce;
             }
             DeIce {
+                entry / {
+                    printTransition("entry", "DeIce");
+                }
+                // Aircraft must takeoff within the deicing fluid holdover or else wait
+                // to be deiced again
+                //
+                // TODO the holdover period should be a constant defined by the
+                // AviationControlSystem
                 // 15 minutes
                 after(15*60) [hasIce] -> DeIce;
             }
+            // The DeIce transition will be ignored without a guard condition
+            //
+            // TODO get timeout from local AirTrafficControl
+            // 60 minutes (arbitrary)
+            after(60*60) [!isCleared] -> TakeoffPrep;
             takeoff() [isCleared] -> Transit;
-            takeoff() [!isCleared] -> TakeoffPrep;
-            //after(this.getAirport(0).getAirTrafficControl().getTimeout()) -> Standby;
         }
         Transit {
             entry / {
-                System.out.println(this.getFlightFullName());
+                printTransition("entry", "Transit");
             }
             -> LandingPipeline;
         }
         LandingPipeline {
             entry / {
-                System.out.println(this.getFlightFullName());
+                printTransition("entry", "LandingPipeline");
             }
             land() [isCleared] -> Disembark;
         }
         Disembark {
             entry / {
-                System.out.println(this.getFlightFullName());
+                printTransition("entry", "Disembark");
             }
             //-> Standby;
         }
@@ -132,6 +162,8 @@ class Plane {
 class Runway {
     1..* -- * GroundCrew;
     int capacity;
+    int id;
+    boolean isLatitudinal;
     status {
         Open {
             Free {
@@ -152,24 +184,22 @@ class Runway {
         }
     }
     direction {
+        Undefined {
+            [isLatitudinal] -> North;
+            [!isLatitudinal] -> East;
+        }
         North {
-            -> South;
+            changeDirection() -> South;
         }
         South {
-            -> North;
+            changeDirection() -> North;
         }
         East {
-            -> West;
+            changeDirection() -> West;
         }
         West {
-            -> East;
+            changeDirection() -> East;
         }
     }
     //  * -> * Personnel;
-}
-
-class FlightPlan {
-    * -- 2..* Airport;
-    Airport origin;
-    Airport destination;
 }
