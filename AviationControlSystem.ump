@@ -1,3 +1,4 @@
+generate Java;
 namespace aviationcontrolsystem;
 
 //interface Personnel {
@@ -7,8 +8,9 @@ class AviationControlSystem {
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
-        AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
-        acs.addAirport(airTrafficCtrl.getAirport());
+        //AirTrafficControl airTrafficCtrl = new AirTrafficControl(acs);
+        acs.addAirport(new Airport("Here Name", "Here Place", 5, acs));
+        acs.addAirport(new Airport("There Name", "There Place", 5, acs));
 
         //Plane plane = new Plane(airTrafficCtrl.getAirport());
 
@@ -23,9 +25,12 @@ class Airport {
     1 -- 1 AirTrafficControl;
     1 -- 1..* Runway;
     1..* -- * Plane;
+    immutable name;
+    immutable address;
 }
 
-class AirTrafficControl { 
+class AirTrafficControl {
+    int timeout;
 }
 
 class Baggage {
@@ -55,7 +60,8 @@ class GroundCrew {
 
 class Plane {
     1 -- 2..* AirCrew;
-    Airline;
+    1 -- * Passenger;
+    airline;
     int flightNumber;
     float fuel;
     public boolean requestClearance(AirTrafficControl arg0){
@@ -122,6 +128,20 @@ class Runway {
             }
             ReadyToOpen {
             }
+        }
+    }
+    direction {
+        North {
+            -> South;
+        }
+        South {
+            -> North;
+        }
+        East {
+            -> West;
+        }
+        West {
+            -> East;
         }
     }
     //  * -> * Personnel;
