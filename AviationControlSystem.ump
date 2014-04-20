@@ -10,8 +10,8 @@ class AviationControlSystem {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
 
-        Airport here = new Airport("Here Name", "Here Place", acs);
-        Airport there = new Airport("There Name", "There Place", acs);
+        Airport here = new Airport("Here Name", "Here Place", 5, acs);
+        Airport there = new Airport("There Name", "There Place", 5, acs);
         
         Airport[] airports = { here, there };
         
@@ -23,7 +23,7 @@ class AviationControlSystem {
         
         FlightPlan flightPlan = new FlightPlan(now, now, 36000.0, plane, airports, airCrew);
         
-        plane.addFlightPlan(flightPlan);
+        plane.addFlightPlan(flightPlan, 0);
         plane.preFlightCheck();
         
         // TODO
@@ -34,7 +34,7 @@ class AviationControlSystem {
         // - Plane takes off removing itself from the pipeline and reseting clearance
         // TODO
         // Figure out how/when ATC can reset clearance
-        plane.setIsCleared(true);
+
         plane.takeoff();
         
         acs.addAirport(here);
@@ -65,10 +65,28 @@ class Airport {
 // however, not all airports will have a control unit in which case a unit would have
 // authority over a region.
 class AirTrafficControl {
-    //\int timeout;
+    // TODO
+    // Aircraft should be able to request hazards information such as weather
+    // (rain, ice, fog (range of visibility), wind gusts (direction, speed, etc)
+    // 
+    //int timeout;
+    // Operating range in Nautical Miles
+    int range;
+    public void requestClearance(Plane plane) {
+        // TODO
+    }
+    public void acknowledgeClearance(Plane plane) {
+        // TODO
+    }
     queued sm {
         // TODO a state machine that monitors and manages aircraft in its airspace
         MonitorAirspace {
+        }
+        TakeoffPipeline {
+            -> MonitorAirspace;
+        }
+        LandingPipeline {
+            -> MonitorAirspace;
         }
     }
 }
@@ -80,7 +98,7 @@ class FlightPlan {
     // origin and destination
     * -- 2 Airport;
     * -- * Passenger;
-    * -- 2 AirCrew;
+    * -- 2..* AirCrew;
     // Discovered UMPLE imports java.sql.Date when trying to define
     // depend java.util.Date
     // TODO associate departure and arrival times with each airport
@@ -119,11 +137,13 @@ class Plane {
     lazy boolean isCleared;
     // Weather deposits ice on the control surfaces
     lazy boolean hasIce;
+    // TODO altitude should initialize to altitude of current airport
+    int altitude;
     private void printTransition(String event, String state) {
         System.out.println("Flight " + getCallsign() + " " + event + " " + state);
     }
     Flight {
-        Hangar {
+        Standby {
             entry / {
                 printTransition("entering", "Hangar");
             }
@@ -141,19 +161,14 @@ class Plane {
                 printTransition("entering", "Board");
             }
             [isEmergency] -> Disembark;
-            [!isEmergency] -> TakeoffPrep;
-        }
-        TakeoffPrep {
-            entry / {
-                printTransition("entering", "TakeoffPrep");
-            }
-            -> TakeoffPipeline;
+            // TODO AirTrafficControl.requestClearance(this);
+            [!isEmergency] -> TakeoffPipeline;
         }
         TakeoffPipeline {
             entry / {
                 printTransition("entering", "TakeoffPipeline");
             }
-            Standby {
+            Ready {
                 entry / {
                     printTransition("entering", "Standby");
                 }
@@ -178,14 +193,20 @@ class Plane {
             after(60*60) [!isCleared] / {
                 printTransition("transition", "TakeoffPipeline -> TakeoffPrep");
             } -> TakeoffPrep;
-            takeoff() [isCleared] / {
+            // TODO replace with AirTrafficControl.acknowledgeClearance(Plane);
+            rotate() / {
                 printTransition("transition", "TakeoffPipeline -> Transit");
             } -> Transit;
+            exit / {
+                //getAirTrafficControl().acknowledgeClearance(this);
+            }
         }
         Transit {
             entry / {
                 printTransition("entering", "Transit");
             }
+            // TODO
+            // Transition between AirTrafficController en route
             -> LandingPipeline;
         }
         LandingPipeline {
@@ -197,8 +218,12 @@ class Plane {
         Disembark {
             entry / {
                 printTransition("entering", "Disembark");
+                // Remove the completed FlightPlan from the queue
+                // TODO: use the sorted directive to make sure flights are sorted by Date
+                removeFlightPlan(getFlightPlan(0));
             }
-            //-> Standby;
+            [!hasFlightPlans()] -> Hangar;
+            [hasFlightPlans()] -> PreFlight;
         }
     }
 }
