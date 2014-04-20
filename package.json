@@ -11,6 +11,7 @@
   "devDependencies": {
     "lodash": "^2.4.1",
     "gaze": "^0.6.3",
-    "async": "^0.7.0"
+    "async": "^0.7.0",
+    "rimraf": "^2.2.6"
   }
 }

@@ -2,6 +2,7 @@
 
 var async = require('async');
 var gaze = require('gaze');
+var rimraf = require('rimraf');
 var sys = require('sys');
 var exec = require('child_process').exec;
 
@@ -11,22 +12,28 @@ var binDir = './bin';
 var package = 'aviationcontrolsystem';
 var mainClass = 'AviationControlSystem';
 
-function run() {
-    console.log(prgname + ': running...');
-    var cmd = 'java -classpath ' + binDir + ' ' + package + '.' + mainClass;
-    var child = exec(cmd, function (err, stdout, stderr) {
-        sys.print('STDOUT\n' + stdout);
-        sys.print('STDERR\n' + stderr);
-        if (err) {
-            throw err;
-        }
-    });
-}
-
 gaze(['./watch.js', '**/*.ump'], function(err, watcher) {
     this.on('all', function(event, filepath) {
         console.log(prgname + ': ' + filepath + ' was modified');
         async.series({
+            clean: function(cb) {
+                async.parallel([
+                    function(callback) {
+                        console.log(prgname + ': rm -rf ' + srcDir + '/' + package);
+                        rimraf(srcDir + '/' + package, function(err) {
+                            callback(err);
+                        });
+                    },
+                    function(callback) {
+                        console.log(prgname + ': rm -rf ' + binDir + '/' + package);
+                        rimraf(binDir + '/' + package, function(err) {
+                            callback(err);
+                        });
+                    }
+                ], function(err, results) {
+                    cb();
+                });
+            },
             generate: function(cb) {
                 var cmd = 'java -jar umple_1.20.0.3845.jar --path ' + srcDir + ' --generate Java *.ump';
                 console.log(prgname + ': generating Java...');
