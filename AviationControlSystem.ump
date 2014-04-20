@@ -2,9 +2,6 @@
 
 namespace aviationcontrolsystem;
 
-//interface Personnel {
-//}
-
 class AviationControlSystem {
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
@@ -29,6 +26,10 @@ class AviationControlSystem {
     1 -- * Airport;
 }
 
+class Captain {
+    isA FlightDeckCrew;
+}
+
 // Captain, the pilot designated as the Pilot in command[1]
 // Co-pilot, another pilot who is not the pilot in command,[1] normally called the First Officer.
 // First officer, a pilot who is not the pilot in command.
@@ -36,18 +37,26 @@ class AviationControlSystem {
 // Third officer
 // Flight engineer, on older aircraft they were the crew member responsible for engines, systems and fuel management.
 interface FlightDeckCrew {
-    isA FlightCrew;
+    //isA FlightCrew;
 }
 
 // Loadmaster, crew member on cargo aircraft responsible for loading freight and personnel and the weight and balance of the aircraft.
 // Purser or Customer Service Manager is responsible for the cabin crew as a team leader.
 // Flight attendant or Cabin Crew, crew member responsible for the safety of passengers.
 interface CabinCrew {
-    isA FlightCrew;
+    //isA FlightCrew;
 }
 
 // Regulations limit work hours and minimum rest hours
-interface FlightCrew {
+//interface FlightCrew {
+//}
+
+// maintenance, fueling, luggage, etc
+interface GroundCrew {
+}
+
+class Airline {
+    0..1 -- 1..* Plane;
 }
 
 class Airport {
@@ -68,18 +77,29 @@ class AirTrafficControl {
     // TODO
     // Aircraft should be able to request hazards information such as weather
     // (rain, ice, fog (range of visibility), wind gusts (direction, speed, etc)
-    // 
+    
+    // TODO timeout for when a plane is kicked out of a pipeline should be defined here
     //int timeout;
     // Operating range in Nautical Miles
     int range;
+    // TODO
+    // To enter a pipeline state, the plane calls this method to add itself to the queue.
+    // In the below state machine, the request is granted when the plane is assigned to a runway
     public void requestClearance(Plane plane) {
-        // TODO
     }
+    // TODO
+    // The plane calls this method after/during takeoff to indicate the runway is available again
     public void acknowledgeClearance(Plane plane) {
         // TODO
     }
     queued sm {
-        // TODO a state machine that monitors and manages aircraft in its airspace
+        // TODO
+        // The intended implementation is that it should idle in the MonitorAirspace state
+        // with a [hasPlanesInPipeline] Guard condition to a pipeline where a single request
+        // is handled before returning to the MonitorAirspace state.
+        // while(hasPlanesInPipeline) {
+        //    handleRequest()
+        // }
         MonitorAirspace {
         }
         TakeoffPipeline {
@@ -97,18 +117,18 @@ class Baggage {
 class FlightPlan {
     // origin and destination
     * -- 2 Airport;
-    //* -- 2..* AirCrew;
+    * -> * CabinCrew;
+    * -> * FlightDeckCrew;
+    // At least one of the FlightDeckCrew must be a Captain
+    Captain captain;
     // Discovered UMPLE imports java.sql.Date when trying to define
     // depend java.util.Date
     // Departure and arrival times
     Date start;
     Date end;
     // Minimum gallons of fuel required to complete the flight
+    // TODO implement guard conditions to prevent flight with insufficient fuel
     double minFuel;
-}
-
-// TODO convert to interface for maintenance, fueling, luggage, etc roles
-class GroundCrew {
 }
 
 class Passenger {
@@ -127,38 +147,45 @@ class Plane {
     immutable make;
     immutable model;
     immutable series;
-    // lazy because a private aircraft may not be associated with an airline
-    lazy immutable airline;
     // Unscheduled general aviation will generally use registration
     // Commercial operators will use ICAO airline designator and route number
     flightCode = registration;
     // Defaults to flight code but may be reassigned by Air Traffic Control
     defaulted callsign = flightCode;
     // Gallons of fuel in the tanks
+    // TODO fuel min / max guards
+    // Cannot have negative fuel or exceed capacity
+    // TODO define fuel capacity
     lazy double fuel;
     lazy boolean isEmergency;
-    // TODO AirTrafficControl.getClearance()
+    // TODO remove and use AirTrafficControl request / acknowledge clearance
     lazy boolean isCleared;
     // Weather deposits ice on the control surfaces
     lazy boolean hasIce;
     // TODO altitude should initialize to altitude of current airport
     int altitude;
+    // A crude function to print the entry, action, and exit state transitions
     private void printTransition(String event, String state) {
         System.out.println("Flight " + getCallsign() + " " + event + " " + state);
     }
+    // TODO handle emergencies (flight, passenger, etc)
+    // Add declareEmergency() function and appropriate transition to all states.
+    // Add [isEmergency] guarded auto transition to all state to handle emergency
+    // declared in any earlier state.
     Flight {
         Standby {
             entry / {
-                printTransition("entering", "Hangar");
+                printTransition("entering", "Standby");
             }
-            // TODO: Guard has FlightPlan today
+            // TODO: add has FlightPlan *today* Guard
             preFlightCheck() [hasFlightPlans()] -> PreFlight;
         }
         PreFlight {
             entry / {
                 printTransition("entering", "PreFlight");
             }
-            -> Board;
+            // TODO Guard AirTrafficControl approve (check isValid) FlightPlan
+            isFlightReady() -> Board;
         }
         Board {
             entry / {
@@ -166,17 +193,21 @@ class Plane {
             }
             [isEmergency] -> Disembark;
             // TODO AirTrafficControl.requestClearance(this);
-            [!isEmergency] -> TakeoffPipeline;
+            [!isEmergency] -> Ready;
         }
-        Ready {
+        FlightPrep {
+            entry / {
+                printTransition("entering", "FlightPrep");
+            }
+            -> TakeoffPipeline;
         }
         TakeoffPipeline {
             entry / {
                 printTransition("entering", "TakeoffPipeline");
             }
-            Idle {
+            Ready {
                 entry / {
-                    printTransition("entering", "Idle");
+                    printTransition("entering", "Ready");
                 }
                 [hasIce] -> DeIce;
             }
@@ -188,31 +219,31 @@ class Plane {
                 // to be deiced again
                 //
                 // TODO the holdover period should be a constant defined by the
-                // AviationControlSystem
+                // AviationControlSystem. Magic numbers buried in the code are bad practice.
                 // 15 minutes
                 after(15*60) [hasIce] -> DeIce;
             }
-            // The DeIce transition will be ignored without a guard condition
+            // Before a flight can land or takeoff, an explicit permission must be issued
+            // that expires after a set amount of time
             //
             // TODO get timeout from local AirTrafficControl
             // 60 minutes (arbitrary)
             after(60*60) [!isCleared] / {
                 printTransition("transition", "TakeoffPipeline -> TakeoffPrep");
-            } -> Ready;
+            } -> FlightPrep;
             // TODO replace with AirTrafficControl.acknowledgeClearance(Plane);
+            // 'rotate' is jargon for when an aircraft lifts up from the runway
             rotate() / {
                 printTransition("transition", "TakeoffPipeline -> Transit");
             } -> Transit;
-            exit / {
-                //getAirTrafficControl().acknowledgeClearance(this);
-            }
         }
         Transit {
             entry / {
                 printTransition("entering", "Transit");
             }
             // TODO
-            // Transition between AirTrafficController en route
+            // Add transitions between AirTrafficControllers en route as the aircraft
+            // enters/leaves their airspace
             -> LandingPipeline;
         }
         LandingPipeline {
@@ -221,7 +252,7 @@ class Plane {
             }
             land() [isCleared] -> Disembark;
         }
-        // TODO Missing In Action / Crash
+        // TODO handle Missing In Action / Crash states
         Disembark {
             entry / {
                 // Any landing you walk away from is a good landing
@@ -237,10 +268,11 @@ class Plane {
     }
 }
 
+// TODO model after umple Runway state machine example 
 class Runway {
-    1..* -- * GroundCrew;
+    * -> * GroundCrew;
     int capacity;
-    int id;
+    //int id;
     boolean isLatitudinal;
     status {
         Open {
@@ -279,5 +311,4 @@ class Runway {
             changeDirection() -> East;
         }
     }
-    //  * -> * Personnel;
 }
