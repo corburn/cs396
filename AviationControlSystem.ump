@@ -1,4 +1,5 @@
-//generate Java;
+// All units of measurement assume International Civil Aviation Organization standards
+
 namespace aviationcontrolsystem;
 
 //interface Personnel {
@@ -9,18 +10,42 @@ class AviationControlSystem {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
 
-        acs.addAirport(new Airport("Here Name", "Here Place", 0, 5, acs));
-        acs.addAirport(new Airport("There Name", "There Place", 0, 5, acs));
+        Airport here = new Airport("Here Name", "Here Place", acs);
+        Airport there = new Airport("There Name", "There Place", acs);
+        
+        Airport[] airports = { here, there };
+        
+        AirCrew[] airCrew = { new AirCrew(), new AirCrew() };
 
         Plane plane = new Plane("1234", 5);
+        
+        java.sql.Date now = new java.sql.Date(new Date().getTime());
+        
+        FlightPlan flightPlan = new FlightPlan(now, now, 36000.0, plane, airports, airCrew);
+        
+        plane.addFlightPlan(flightPlan);
+        plane.preFlightCheck();
+        
+        // TODO
+        // - add pipelines to AirTrafficControl
+        // - Plane adds itself to the takeoff pipeline
+        // - AirTrafficControl state machine sees queue is not empty
+        // - ATC checks all clear and grants clearance
+        // - Plane takes off removing itself from the pipeline and reseting clearance
+        // TODO
+        // Figure out how/when ATC can reset clearance
+        plane.setIsCleared(true);
+        plane.takeoff();
+        
+        acs.addAirport(here);
+        acs.addAirport(there);
 
-        System.out.println("End Simulation");
-        // BUG: the simulation was not exiting without this statement
-        System.exit(0);
+        // The after() directives launch threads that continue to run after main has finished
+        //System.out.println("End Simulation");
+        //System.exit(0);
     }
     1 -- * Airport;
 }
-
 
 class AirCrew {
 }
@@ -30,20 +55,19 @@ class Airport {
     1 -- 1..* Runway;
     immutable name;
     immutable address;
-    immutable int altitude;
+    // altitude in feet
+    //immutable int altitude;
+    // TODO close airport
     lazy boolean isEmergency;
 }
 
+// Criticism: the assignment specification requires every airport have a control unit,
+// however, not all airports will have a control unit in which case a unit would have
+// authority over a region.
 class AirTrafficControl {
-    int timeout;
-    public boolean getClearance() {
-        if(this.getAirport().getIsEmergency()) {
-            return false;
-        }
-        //TODO
-        return false;
-    }
+    //\int timeout;
     queued sm {
+        // TODO a state machine that monitors and manages aircraft in its airspace
         MonitorAirspace {
         }
     }
@@ -53,12 +77,17 @@ class Baggage {
 }
 
 class FlightPlan {
-    * -- 2..* Airport;
+    // origin and destination
+    * -- 2 Airport;
+    * -- * Passenger;
+    * -- 2 AirCrew;
     // Discovered UMPLE imports java.sql.Date when trying to define
     // depend java.util.Date
     // TODO associate departure and arrival times with each airport
     Date start;
     Date end;
+    // Minimum gallons of fuel required to complete the flight
+    double minFuel;
 }
 
 class GroundCrew {
@@ -73,8 +102,6 @@ class Passenger {
 class Plane {
     // TODO cancel/modify FlightPlan
     1 -- * FlightPlan;
-    1 -- 2..* AirCrew;
-    1 -- * Passenger;
     // Aircraft Registration
     immutable registration;
     immutable int seats;
@@ -85,47 +112,56 @@ class Plane {
     flightCode = registration;
     // Defaults to flight code but may be reassigned by Air Traffic Control
     defaulted callsign = flightCode;
+    // Gallons of fuel in the tanks
     lazy double fuel;
     lazy boolean isEmergency;
     // TODO AirTrafficControl.getClearance()
     lazy boolean isCleared;
+    // Weather deposits ice on the control surfaces
     lazy boolean hasIce;
     private void printTransition(String event, String state) {
-        System.out.println(this.toString() + " " + event + " " + state);
+        System.out.println("Flight " + getCallsign() + " " + event + " " + state);
     }
     Flight {
-        FlightPrep {
+        Hangar {
             entry / {
-                printTransition("entry", "FlightPrep");
+                printTransition("entering", "Hangar");
+            }
+            // TODO: Guard has FlightPlan today
+            preFlightCheck() [hasFlightPlans()] -> PreFlight;
+        }
+        PreFlight {
+            entry / {
+                printTransition("entering", "PreFlight");
             }
             -> Board;
         }
         Board {
             entry / {
-                printTransition("entry", "Board");
+                printTransition("entering", "Board");
             }
             [isEmergency] -> Disembark;
             [!isEmergency] -> TakeoffPrep;
         }
         TakeoffPrep {
             entry / {
-                printTransition("entry", "TakeoffPrep");
+                printTransition("entering", "TakeoffPrep");
             }
             -> TakeoffPipeline;
         }
         TakeoffPipeline {
             entry / {
-                printTransition("entry", "TakeoffPipeline");
+                printTransition("entering", "TakeoffPipeline");
             }
             Standby {
                 entry / {
-                    printTransition("entry", "Standby");
+                    printTransition("entering", "Standby");
                 }
                 [hasIce] -> DeIce;
             }
             DeIce {
                 entry / {
-                    printTransition("entry", "DeIce");
+                    printTransition("entering", "DeIce");
                 }
                 // Aircraft must takeoff within the deicing fluid holdover or else wait
                 // to be deiced again
@@ -139,24 +175,28 @@ class Plane {
             //
             // TODO get timeout from local AirTrafficControl
             // 60 minutes (arbitrary)
-            after(60*60) [!isCleared] -> TakeoffPrep;
-            takeoff() [isCleared] -> Transit;
+            after(60*60) [!isCleared] / {
+                printTransition("transition", "TakeoffPipeline -> TakeoffPrep");
+            } -> TakeoffPrep;
+            takeoff() [isCleared] / {
+                printTransition("transition", "TakeoffPipeline -> Transit");
+            } -> Transit;
         }
         Transit {
             entry / {
-                printTransition("entry", "Transit");
+                printTransition("entering", "Transit");
             }
             -> LandingPipeline;
         }
         LandingPipeline {
             entry / {
-                printTransition("entry", "LandingPipeline");
+                printTransition("entering", "LandingPipeline");
             }
             land() [isCleared] -> Disembark;
         }
         Disembark {
             entry / {
-                printTransition("entry", "Disembark");
+                printTransition("entering", "Disembark");
             }
             //-> Standby;
         }

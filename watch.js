@@ -52,9 +52,10 @@ gaze(['./watch.js', '**/*.ump'], function(err, watcher) {
                     if (stderr) {
                         sys.print('STDERR\n' + stderr);
                     }
+                    sys.print('DONE\n');
                     cb(err);
                 });
-            },
+            }/*,
             run: function(cb) {
                 var cmd = 'java -classpath ' + binDir + ' ' + package + '.' + mainClass;
                 console.log(prgname + ': running...');
@@ -68,7 +69,7 @@ gaze(['./watch.js', '**/*.ump'], function(err, watcher) {
                     }
                     cb(err);
                 });
-            }
+            }*/
         }, function (err, results) {
             if (err) throw err;
             //console.log(results);
