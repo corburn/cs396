@@ -8,23 +8,10 @@ namespace aviationcontrolsystem;
 class AviationControlSystem {
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
-        AviationControlSystem acs = new AviationControlSystem();
-
-        Airport here = new Airport("Here Name", "Here Place", 5, acs);
-        Airport there = new Airport("There Name", "There Place", 5, acs);
-        
-        Airport[] airports = { here, there };
-        
-        AirCrew[] airCrew = { new AirCrew(), new AirCrew() };
-
-        Plane plane = new Plane("1234", 5);
-        
-        java.sql.Date now = new java.sql.Date(new Date().getTime());
-        
-        FlightPlan flightPlan = new FlightPlan(now, now, 36000.0, plane, airports, airCrew);
-        
-        plane.addFlightPlan(flightPlan, 0);
-        plane.preFlightCheck();
+        //AviationControlSystem acs = new AviationControlSystem();
+                
+        //acs.addAirport(new Airport("Here Name", "Here Place", 5, acs));
+        //acs.addAirport(new Airport("There Name", "There Place", 5, acs));
         
         // TODO
         // - add pipelines to AirTrafficControl
@@ -35,11 +22,6 @@ class AviationControlSystem {
         // TODO
         // Figure out how/when ATC can reset clearance
 
-        plane.takeoff();
-        
-        acs.addAirport(here);
-        acs.addAirport(there);
-
         // The after() directives launch threads that continue to run after main has finished
         //System.out.println("End Simulation");
         //System.exit(0);
@@ -47,7 +29,25 @@ class AviationControlSystem {
     1 -- * Airport;
 }
 
-class AirCrew {
+// Captain, the pilot designated as the Pilot in command[1]
+// Co-pilot, another pilot who is not the pilot in command,[1] normally called the First Officer.
+// First officer, a pilot who is not the pilot in command.
+// Second officer
+// Third officer
+// Flight engineer, on older aircraft they were the crew member responsible for engines, systems and fuel management.
+interface FlightDeckCrew {
+    isA FlightCrew;
+}
+
+// Loadmaster, crew member on cargo aircraft responsible for loading freight and personnel and the weight and balance of the aircraft.
+// Purser or Customer Service Manager is responsible for the cabin crew as a team leader.
+// Flight attendant or Cabin Crew, crew member responsible for the safety of passengers.
+interface CabinCrew {
+    isA FlightCrew;
+}
+
+// Regulations limit work hours and minimum rest hours
+interface FlightCrew {
 }
 
 class Airport {
@@ -97,21 +97,22 @@ class Baggage {
 class FlightPlan {
     // origin and destination
     * -- 2 Airport;
-    * -- * Passenger;
-    * -- 2..* AirCrew;
+    //* -- 2..* AirCrew;
     // Discovered UMPLE imports java.sql.Date when trying to define
     // depend java.util.Date
-    // TODO associate departure and arrival times with each airport
+    // Departure and arrival times
     Date start;
     Date end;
     // Minimum gallons of fuel required to complete the flight
     double minFuel;
 }
 
+// TODO convert to interface for maintenance, fueling, luggage, etc roles
 class GroundCrew {
 }
 
 class Passenger {
+    * -- 1..* FlightPlan;
     1 -- * Baggage;
     name;
     int age;
@@ -123,6 +124,9 @@ class Plane {
     // Aircraft Registration
     immutable registration;
     immutable int seats;
+    immutable make;
+    immutable model;
+    immutable series;
     // lazy because a private aircraft may not be associated with an airline
     lazy immutable airline;
     // Unscheduled general aviation will generally use registration
@@ -164,13 +168,15 @@ class Plane {
             // TODO AirTrafficControl.requestClearance(this);
             [!isEmergency] -> TakeoffPipeline;
         }
+        Ready {
+        }
         TakeoffPipeline {
             entry / {
                 printTransition("entering", "TakeoffPipeline");
             }
-            Ready {
+            Idle {
                 entry / {
-                    printTransition("entering", "Standby");
+                    printTransition("entering", "Idle");
                 }
                 [hasIce] -> DeIce;
             }
@@ -192,7 +198,7 @@ class Plane {
             // 60 minutes (arbitrary)
             after(60*60) [!isCleared] / {
                 printTransition("transition", "TakeoffPipeline -> TakeoffPrep");
-            } -> TakeoffPrep;
+            } -> Ready;
             // TODO replace with AirTrafficControl.acknowledgeClearance(Plane);
             rotate() / {
                 printTransition("transition", "TakeoffPipeline -> Transit");
@@ -215,15 +221,18 @@ class Plane {
             }
             land() [isCleared] -> Disembark;
         }
+        // TODO Missing In Action / Crash
         Disembark {
             entry / {
+                // Any landing you walk away from is a good landing
                 printTransition("entering", "Disembark");
+            }
+            -> Standby;
+            exit / {
                 // Remove the completed FlightPlan from the queue
                 // TODO: use the sorted directive to make sure flights are sorted by Date
-                removeFlightPlan(getFlightPlan(0));
+                removeFlightPlan(getFlightPlan(0));                
             }
-            [!hasFlightPlans()] -> Hangar;
-            [hasFlightPlans()] -> PreFlight;
         }
     }
 }
