@@ -5,10 +5,29 @@ namespace aviationcontrolsystem;
 class AviationControlSystem {
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
-        //AviationControlSystem acs = new AviationControlSystem();
+        AviationControlSystem acs = new AviationControlSystem();
+        
+        AirTrafficControl here = new AirTrafficControl(50, "Here Name", "Here Place", new Pipeline(), new Pipeline());
+        AirTrafficControl there = new AirTrafficControl(50, "There Name", "There Place", new Pipeline(), new Pipeline());
                 
-        //acs.addAirport(new Airport("Here Name", "Here Place", 5, acs));
-        //acs.addAirport(new Airport("There Name", "There Place", 5, acs));
+        acs.addAirport(here.getAirport());
+        acs.addAirport(there.getAirport());
+        
+        Plane thePlane = new Plane("Risk", 666, "Mercury", "Firestorm", "CX7", 20000);
+        Captain jackHarkness = new Captain();
+        java.sql.Date now = new java.sql.Date(new Date().getTime());
+        FlightPlan thePlan = new FlightPlan(jackHarkness, now, now, 95.0, thePlane, here.getAirport(), there.getAirport(), hereWeAre);
+        thePlane.preFlightCheck();
+      
+        Terminal hereWeAre = new Terminal(here.getAirport());
+        Terminal thereWeGo = new Terminal(there.getAirport());
+        
+        Passenger uno = new Passenger("Priest", 56, hereWeAre, thePlan);
+        Passenger dos = new Passenger("Rabbi", 30, hereWeAre, thePlan);
+        Passenger tres = new Passenger("Minister", 42, hereWeAre, thePlan);
+        Passenger cuatro = new Passenger("StewieGriffin", 1, hereWeAre, thePlan);
+      
+        
         
         // TODO
         // - add pipelines to AirTrafficControl
@@ -23,7 +42,7 @@ class AviationControlSystem {
         //System.out.println("End Simulation");
         //System.exit(0);
     }
-    1 -- * Airport;
+    * -> * Airport;
 }
 
 class Captain {
@@ -57,6 +76,7 @@ interface GroundCrew {
 
 class Airline {
     0..1 -- 1..* Plane;
+    name;
 }
 
 class Airport {
@@ -74,25 +94,30 @@ class Airport {
 // however, not all airports will have a control unit in which case a unit would have
 // authority over a region.
 class AirTrafficControl {
+    * -> 2 Pipeline;
     // TODO
     // Aircraft should be able to request hazards information such as weather
     // (rain, ice, fog (range of visibility), wind gusts (direction, speed, etc)
-    
-    // TODO timeout for when a plane is kicked out of a pipeline should be defined here
-    //int timeout;
+
     // Operating range in Nautical Miles
     int range;
     // TODO
     // To enter a pipeline state, the plane calls this method to add itself to the queue.
     // In the below state machine, the request is granted when the plane is assigned to a runway
-    public void requestClearance(Plane plane) {
+    public void requestTakeoffClearance(Plane plane) {
+        getPipeline(0).addPlane(plane);
+    }
+    public void requestLandingClearance(Plane plane) {
+        getPipeline(1).addPlane(plane);
+    }
+    private void assignRunway() {
     }
     // TODO
     // The plane calls this method after/during takeoff to indicate the runway is available again
     public void acknowledgeClearance(Plane plane) {
-        // TODO
+        
     }
-    queued sm {
+    queued airspace {
         // TODO
         // The intended implementation is that it should idle in the MonitorAirspace state
         // with a [hasPlanesInPipeline] Guard condition to a pipeline where a single request
@@ -100,13 +125,27 @@ class AirTrafficControl {
         // while(hasPlanesInPipeline) {
         //    handleRequest()
         // }
-        MonitorAirspace {
+        Monitor {
+            entry / {
+                System.out.println(getAirport().getName() + " Air Traffic Control entering Monitor");
+            }
+            // Handle each request until the pipeline is empty
+            [getPipeline(0).hasPlanes()] -> TakeoffPipeline;
+            requestTakeoffClearance() -> TakeoffPipeline;
+            [getPipeline(1).hasPlanes()] -> LandingPipeline;
+            requestLandingClearance() -> LandingPipeline;
         }
         TakeoffPipeline {
-            -> MonitorAirspace;
+            entry / {
+                System.out.println(getAirport().getName() + " Air Traffic Control entering TakeoffPipeline");
+            }
+            -> Monitor;
         }
         LandingPipeline {
-            -> MonitorAirspace;
+            entry / {
+                System.out.println(getAirport().getName() + " Air Traffic Control entering LandingPipeline");
+            }
+            -> Monitor;
         }
     }
 }
@@ -136,6 +175,10 @@ class Passenger {
     1 -- * Baggage;
     name;
     int age;
+}
+
+class Pipeline {
+    * -> * Plane;
 }
 
 class Plane {
@@ -168,11 +211,33 @@ class Plane {
     private void printTransition(String event, String state) {
         System.out.println("Flight " + getCallsign() + " " + event + " " + state);
     }
+  
+    private boolean hasPassengersAtTerminal() {
+        return getFlightPlan(0).getTerminal(0).hasPassengers();
+    }
+    private void board() {
+        FlightPlan plan = getFlightPlan(0);
+        Terminal terminal = plan.getTerminal(0);
+        List<Passenger> passengers = terminal.getPassengers();
+        for(Passenger passenger : passengers) {
+            plan.addPassenger(passenger);
+            terminal.removePassenger(passenger);
+        }
+    }
+    private void disembark(int terminal) {
+        Terminal awesomeTerminal = getFlightPlan(0).getTerminal(terminal);
+        FlightPlan awesomePlan = getFlightPlan(0);
+        List<Passenger> morePassengers = awesomePlan.getPassengers();
+      for (Passenger passenger : morePassengers) {
+          awesomeTerminal.addPassenger(passenger);
+          awesomePlan.removePassenger(passenger);
+      }
+    }
     // TODO handle emergencies (flight, passenger, etc)
     // Add declareEmergency() function and appropriate transition to all states.
     // Add [isEmergency] guarded auto transition to all state to handle emergency
     // declared in any earlier state.
-    Flight {
+    flight {
         Standby {
             entry / {
                 printTransition("entering", "Standby");
@@ -185,15 +250,17 @@ class Plane {
                 printTransition("entering", "PreFlight");
             }
             // TODO Guard AirTrafficControl approve (check isValid) FlightPlan
-            isFlightReady() -> Board;
+            isFlightReady() [!hasPassengersAtTerminal()] -> FlightPrep;
+            isFlightReady() [hasPassengersAtTerminal()] -> Board;
         }
         Board {
             entry / {
                 printTransition("entering", "Board");
+                board();
             }
             [isEmergency] -> Disembark;
             // TODO AirTrafficControl.requestClearance(this);
-            [!isEmergency] -> Ready;
+            [!isEmergency] -> FlightPrep;
         }
         FlightPrep {
             entry / {
@@ -226,8 +293,8 @@ class Plane {
             // Before a flight can land or takeoff, an explicit permission must be issued
             // that expires after a set amount of time
             //
-            // TODO get timeout from local AirTrafficControl
             // 60 minutes (arbitrary)
+            // CRITICISM have to hard code plane timeout, does not work with generated get methods
             after(60*60) [!isCleared] / {
                 printTransition("transition", "TakeoffPipeline -> TakeoffPrep");
             } -> FlightPrep;
@@ -268,31 +335,49 @@ class Plane {
     }
 }
 
-// TODO model after umple Runway state machine example 
 class Runway {
     * -> * GroundCrew;
     int capacity;
     //int id;
     boolean isLatitudinal;
-    status {
-        Open {
-            Free {
-                -> Occupied;
-            }
-            Occupied {
-            }
-        }
-        Closed {
-            Emergency {
-                -> ReadyToOpen;
-            }
-            Maintenance {
-                -> ReadyToOpen;
-            }
-            ReadyToOpen {
-            }
-        }
+  runwayState2 {
+  
+    Open {
+      crisis -> EmergencyShutdown;
+      
+      Available {
+        planeDeparting -> InUse;
+		planeJustLanded -> InUse;
+        repair -> Reconstruction;
+		weather -> Reconstruction;
+      }
+      
+      InUse {
+        planeDeparted -> Available;
+        planeReachesTerminal -> Available;
+      }
     }
+  
+    Closed {
+      EmergencyShutdown {
+        crisisResolved -> RunwaySafe;
+      }
+      
+      RunwaySafe {
+        opening -> Open;
+      }
+      
+      Reconstruction {
+          Repair {
+            completed -> Inspect;
+          }
+          Inspect { 
+            upToStandard -> RunwaySafe;
+            notUpToStandard -> Repair; 
+          }
+      }
+    } 
+  }
     direction {
         Undefined {
             [isLatitudinal] -> North;
@@ -311,4 +396,10 @@ class Runway {
             changeDirection() -> East;
         }
     }
+}
+
+class Terminal {
+  * -- 1 Airport;
+  1 -- * Passenger;
+  2 -- * FlightPlan;
 }
