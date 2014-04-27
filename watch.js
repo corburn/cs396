@@ -1,41 +1,49 @@
 #!/usr/bin/env node
 
 var async = require('async');
+var exec = require('child_process').exec;
 var gaze = require('gaze');
+var path = require('path');
 var rimraf = require('rimraf');
 var sys = require('sys');
-var exec = require('child_process').exec;
 
-var prgname = __filename.split('/')[__filename.split('/').length - 1];
+// trim path from __filename
+var prgname = __filename.slice(__dirname.length+1,__filename.length);
 var srcDir = './src';
 var binDir = './bin';
-var package = 'aviationcontrolsystem';
-var mainClass = 'AviationControlSystem';
+var umple = 'umple_1.20.0.3845.jar';
 
-gaze(['./watch.js', '**/*.ump'], function(err, watcher) {
+gaze(['**/*.ump'], function(err, watcher) {
     this.on('all', function(event, filepath) {
+        var package = filepath.split('/')[filepath.split('/').length - 1].replace(/\..+$/, '').toLowerCase();
         console.log(prgname + ': ' + filepath + ' was modified');
+        if (!filepath.match(/\.ump$/)) {
+            console.error(filepath + ' does not appear to be an umple file');
+            return;
+        }
         async.series({
             clean: function(cb) {
                 async.parallel([
                     function(callback) {
-                        console.log(prgname + ': rm -rf ' + srcDir + '/' + package);
-                        rimraf(srcDir + '/' + package, function(err) {
+                        var p = path.join(__dirname, srcDir, package);
+                        console.log(prgname + ': rm -rf ' + p);
+                        rimraf(p, function(err) {
                             callback(err);
                         });
                     },
                     function(callback) {
-                        console.log(prgname + ': rm -rf ' + binDir + '/' + package);
-                        rimraf(binDir + '/' + package, function(err) {
+                        var p = path.join(__dirname, binDir, package);
+                        console.log(prgname + ': rm -rf ' + p);
+                        rimraf(p, function(err) {
                             callback(err);
                         });
                     }
                 ], function(err, results) {
-                    cb();
+                    cb(err);
                 });
             },
             generate: function(cb) {
-                var cmd = 'java -jar umple_1.20.0.3845.jar --path ' + srcDir + ' --generate Java *.ump';
+                var cmd = 'java -jar ' + umple + ' --path ' + srcDir + ' --generate Java ' + filepath;
                 console.log(prgname + ': generating Java...');
                 console.log(prgname + ': ' + cmd);
                 var child = exec(cmd, function (err, stdout, stderr) {
