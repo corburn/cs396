@@ -3,32 +3,36 @@
 namespace aviationcontrolsystem;
 
 class AviationControlSystem {
+    trace airports;
+    
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
+        AviationControlSystem acs = new AviationControlSystem();
+        acs.addAirport(new AirTrafficControl());
+        acs.addAirport(new AirTrafficControl());
         /*AviationControlSystem acs = new AviationControlSystem();
-        
+
         AirTrafficControl here = new AirTrafficControl(50, "Here Name", "Here Place", new Pipeline(), new Pipeline());
         AirTrafficControl there = new AirTrafficControl(50, "There Name", "There Place", new Pipeline(), new Pipeline());
-                
-        acs.addAirport(here.getAirport());
-        acs.addAirport(there.getAirport());
-        
-        Plane thePlane = new Plane("Risk", 666, "Mercury", "Firestorm", "CX7", 20000);
-        Captain jackHarkness = new Captain();
-        java.sql.Date now = new java.sql.Date(new Date().getTime());
-        FlightPlan thePlan = new FlightPlan(jackHarkness, now, now, 95.0, thePlane, here.getAirport(), there.getAirport(), hereWeAre);
-        thePlane.preFlightCheck();
-      
-        Terminal hereWeAre = new Terminal(here.getAirport());
-        Terminal thereWeGo = new Terminal(there.getAirport());
-        
-        Passenger uno = new Passenger("Priest", 56, hereWeAre, thePlan);
-        Passenger dos = new Passenger("Rabbi", 30, hereWeAre, thePlan);
-        Passenger tres = new Passenger("Minister", 42, hereWeAre, thePlan);
-        Passenger cuatro = new Passenger("StewieGriffin", 1, hereWeAre, thePlan);
-      
-        
-        
+          acs.addAirport(here.getAirport());
+          acs.addAirport(there.getAirport());
+
+          Plane thePlane = new Plane("Risk", 666, "Mercury", "Firestorm", "CX7", 20000);
+          Captain jackHarkness = new Captain();
+          java.sql.Date now = new java.sql.Date(new Date().getTime());
+          FlightPlan thePlan = new FlightPlan(jackHarkness, now, now, 95.0, thePlane, here.getAirport(), there.getAirport(), hereWeAre);
+          thePlane.preFlightCheck();
+
+          Terminal hereWeAre = new Terminal(here.getAirport());
+          Terminal thereWeGo = new Terminal(there.getAirport());
+
+          Passenger uno = new Passenger("Priest", 56, hereWeAre, thePlan);
+          Passenger dos = new Passenger("Rabbi", 30, hereWeAre, thePlan);
+          Passenger tres = new Passenger("Minister", 42, hereWeAre, thePlan);
+          Passenger cuatro = new Passenger("StewieGriffin", 1, hereWeAre, thePlan);
+
+
+
         // TODO
         // - add pipelines to AirTrafficControl
         // - Plane adds itself to the takeoff pipeline
@@ -71,12 +75,7 @@ class AirTrafficControl {
     // (rain, ice, fog (range of visibility), wind gusts (direction, speed, etc)
 
     // Operating range in Nautical Miles
-    immutable int range;
-    // TODO
-    // The plane calls this method after/during takeoff to indicate the runway is available again
-    public void acknowledgeClearance(Plane plane) {
-        plane.takeoff();
-    }
+    //immutable int range;
     queued airspace {
         // TODO
         // The intended implementation is that it should idle in the MonitorAirspace state
@@ -127,8 +126,12 @@ class Captain {
 //class Equipment {
 //}
 
+// CRITICISM:
+// It is assumed
+// - FlightPlans are sorted by date
+// - FlightPlans are valid
 // Based on (FAA) Domestic Flight Plan Form 7233-1
-// registration, color, aircraft type, and special equipment can
+// registration, color, aircraft type, special equipment, and fuelOnBoard
 // can be obtained from the Plane object
 class FlightPlan {
     // departure, destination, and alternate airports in the event the destination is unavailable
@@ -151,8 +154,6 @@ class FlightPlan {
     //int estTimeEnRoute;
     // Additional information for AirTrafficControl
     //remarks;
-    // Amount of fuel on board the aircraft in minutes
-    //int fuelOnBoard;
     // At least one of the FlightDeckCrew must be a Captain
     //Captain captain
 }
@@ -166,6 +167,7 @@ class Passenger {
 class Plane {
     // Aircraft Registration
     //immutable registration;
+    // TODO: divide into business class/coach class and amenities
     //immutable int seats;
     //immutable int maxWeight;
     //immutable make;
@@ -185,127 +187,154 @@ class Plane {
     // TODO fuel min / max guards
     // Cannot have negative fuel or exceed capacity
     // TODO define fuel capacity
-    lazy double fuel;
-    lazy int weight;
+    // Amount of fuel on board the aircraft in minutes
+    lazy int fuelOnBoard;
     lazy boolean isEmergency;
     // Weather deposits ice on the control surfaces
     lazy boolean hasIce;
-    // TODO altitude should initialize to altitude of current airport
-    int altitude;
+    // AirTrafficControl can instruct the Plane to fly at a given altitude
+    //lazy int altitude;
     // A crude function to print the entry, action, and exit state transitions
     private void printTransition(String event, String state) {
         //System.out.println("Flight " + getCallsign() + " " + event + " " + state);
     }
-    
+
     // TODO it should request AirTrafficControl add the plane to the appropriate pipeline
-    public boolean requestClearance(AirTrafficControl atc) {
-        return false;
+    public void requestClearance() {
+    }
+    // AirTrafficControl can remove the plane from the pipeline
+    public void acknowledgeClearance() {
+        // TODO
     }
     private boolean hasPassengersAtTerminal() {
         //return getFlightPlan(0).getTerminal(0).hasPassengers();
         return false;
     }
+    // Transfer Passengers from Terminal to Plane
     private void board() {
         /*FlightPlan plan = getFlightPlan(0);
-        Terminal terminal = plan.getTerminal(0);
-        List<Passenger> passengers = terminal.getPassengers();
-        for(Passenger passenger : passengers) {
-            plan.addPassenger(passenger);
-            terminal.removePassenger(passenger);
-        }*/
+          Terminal terminal = plan.getTerminal(0);
+          List<Passenger> passengers = terminal.getPassengers();
+          for(Passenger passenger : passengers) {
+          plan.addPassenger(passenger);
+          terminal.removePassenger(passenger);
+          }*/
     }
+    // Transfer Passengers from Plane to Terminal
     private void disembark(int terminal) {
         /*Terminal awesomeTerminal = getFlightPlan(0).getTerminal(terminal);
-        FlightPlan awesomePlan = getFlightPlan(0);
-        List<Passenger> morePassengers = awesomePlan.getPassengers();
-        for (Passenger passenger : morePassengers) {
-            awesomeTerminal.addPassenger(passenger);
-            awesomePlan.removePassenger(passenger);
-        }*/
+          FlightPlan awesomePlan = getFlightPlan(0);
+          List<Passenger> morePassengers = awesomePlan.getPassengers();
+          for (Passenger passenger : morePassengers) {
+          awesomeTerminal.addPassenger(passenger);
+          awesomePlan.removePassenger(passenger);
+          }*/
     }
     // TODO handle emergencies (flight, passenger, etc)
     // Add declareEmergency() function and appropriate transition to all states.
     // Add [isEmergency] guarded auto transition to all state to handle emergency
     // declared in any earlier state.
-    flight {
-        Standby {
-            entry / {
-                printTransition("entering", "Standby");
-            }
-            // TODO: add has FlightPlan *today* Guard
-            preFlightCheck() [hasFlightPlans()] -> PreFlight;
-        }
-        PreFlight {
-            entry / {
-                printTransition("entering", "PreFlight");
-            }
-            // TODO Guard AirTrafficControl approve (check isValid) FlightPlan
-            // Verify the plane is at the first Airport
-            isFlightReady() [!hasPassengersAtTerminal()] -> TakeoffPipeline;
-            isFlightReady() [hasPassengersAtTerminal()] -> Board;
-        }
-        Board {
-            entry / {
-                printTransition("entering", "Board");
-                board();
-            }
-            [isEmergency] -> Disembark;
-            [!isEmergency] -> TakeoffPipeline;
-        }
-        TakeoffPipeline {
-            entry / {
-                printTransition("entering", "TakeoffPipeline");
-            }
-            Ready {
+    sm {
+        flight {
+            Standby {
                 entry / {
-                    printTransition("entering", "Ready");
+                    printTransition("entering", "Standby");
                 }
-                [hasIce] -> DeIce;
+                // TODO: add has FlightPlan *today* Guard
+                // Verify valid FlightPlan and plane is at the first airport
+                [hasFlightPlans()] -> PreFlight;
+                [!hasFlightPlans()] -> Standby;
             }
-            DeIce {
+            PreFlight {
                 entry / {
-                    printTransition("entering", "DeIce");
+                    printTransition("entering", "PreFlight");
                 }
-                // Aircraft must takeoff within the deicing fluid holdover or else wait
-                // to be deiced again
-                //
-                // TODO the holdover period should be a constant defined by the
-                // AviationControlSystem. Magic numbers buried in the code are bad practice.
-                // 15 minutes
-                after(15*60) [hasIce] -> DeIce;
+                preFlightCheck() [!hasPassengersAtTerminal()] -> TakeoffPipeline;
+                preFlightCheck() [hasPassengersAtTerminal()] -> Board;
             }
-            // TODO replace with AirTrafficControl.acknowledgeClearance(Plane);
-            // 'rotate' is jargon for when an aircraft lifts up from the runway
-            takeoff() / {
-                printTransition("transition", "TakeoffPipeline -> Transit");
-            } -> Transit;
+            Board {
+                entry / {
+                    printTransition("entering", "Board");
+                    board();
+                }
+                -> TakeoffPipeline;
+            }
+            TakeoffPipeline {
+                entry / {
+                    printTransition("entering", "TakeoffPipeline");
+                    requestClearance();
+                }
+                Ready {
+                    entry / {
+                        printTransition("entering", "Ready");
+                    }
+                    [hasIce] -> DeIce;
+                }
+                DeIce {
+                    entry / {
+                        printTransition("entering", "DeIce");
+                    }
+                    // Aircraft must takeoff within the deicing fluid holdover or else wait
+                    // to be deiced again
+                    //
+                    // TODO: the holdover period should be a constant defined by the
+                    // AviationControlSystem. Magic numbers buried in the code are bad practice.
+                    // 15 minutes
+                    after(15*60) [hasIce] -> DeIce;
+                }
+                // TODO replace with AirTrafficControl.acknowledgeClearance(Plane);
+                // 'rotate' is jargon for when an aircraft lifts up from the runway
+                grantClearance() / {
+                    printTransition("transition", "TakeoffPipeline -> Transit");
+                } -> Takeoff;
+            }
+            Takeoff {
+                // TODO: the expiration period should be a constant defined by AirTrafficControl
+                // or the AviationControlSystem
+                // After 5 minutes permission expires
+                after(5*60) -> TakeoffPipeline;
+                takeoff() / { acknowledgeClearance(); } -> Transit;
+            }
+            Transit {
+                entry / {
+                    printTransition("entering", "Transit");
+                }
+                // TODO
+                // Add transitions between AirTrafficControllers en route as the aircraft
+                // enters/leaves their airspace
+                -> LandingPipeline;
+            }
+            LandingPipeline {
+                entry / {
+                    printTransition("entering", "LandingPipeline");
+                    requestClearance();
+                }
+                grantClearance() -> Land;
+            }
+            Land {
+                // After 5 minutes permission expires
+                after(5*60) -> LandingPipeline;
+                land() / { acknowledgeClearance(); } -> Disembark;
+            }
+            // TODO handle Missing In Action / Crash states
+            Disembark {
+                entry / {
+                    // Any landing you walk away from is a good landing
+                    printTransition("entering", "Disembark");
+                }
+                -> Standby;
+                exit / {
+                    // Remove the completed FlightPlan from the queue
+                    // TODO: use the sorted directive to make sure flights are sorted by Date
+                    removeFlightPlan(getFlightPlan(0));                
+                }
+            }
+            emergency() -> Abort;
         }
-        Transit {
+        Abort {
             entry / {
-                printTransition("entering", "Transit");
-            }
-            // TODO
-            // Add transitions between AirTrafficControllers en route as the aircraft
-            // enters/leaves their airspace
-            -> LandingPipeline;
-        }
-        LandingPipeline {
-            entry / {
-                printTransition("entering", "LandingPipeline");
-            }
-            land() -> Disembark;
-        }
-        // TODO handle Missing In Action / Crash states
-        Disembark {
-            entry / {
-                // Any landing you walk away from is a good landing
-                printTransition("entering", "Disembark");
-            }
-            -> Standby;
-            exit / {
-                // Remove the completed FlightPlan from the queue
-                // TODO: use the sorted directive to make sure flights are sorted by Date
-                removeFlightPlan(getFlightPlan(0));                
+                    // Any landing you walk away from is a good landing
+                    printTransition("entering", "Abort");
             }
         }
     }
@@ -316,44 +345,44 @@ class Runway {
     int capacity;
     //int id;
     boolean isLatitudinal;
-  runwayState2 {
-  
-    Open {
-      crisis -> EmergencyShutdown;
-      
-      Available {
-        planeDeparting -> InUse;
-		planeJustLanded -> InUse;
-        repair -> Reconstruction;
-		weather -> Reconstruction;
-      }
-      
-      InUse {
-        planeDeparted -> Available;
-        planeReachesTerminal -> Available;
-      }
+    runwayState2 {
+
+        Open {
+            crisis -> EmergencyShutdown;
+
+            Available {
+                planeDeparting -> InUse;
+                planeJustLanded -> InUse;
+                repair -> Reconstruction;
+                weather -> Reconstruction;
+            }
+
+            InUse {
+                planeDeparted -> Available;
+                planeReachesTerminal -> Available;
+            }
+        }
+
+        Closed {
+            EmergencyShutdown {
+                crisisResolved -> RunwaySafe;
+            }
+
+            RunwaySafe {
+                opening -> Open;
+            }
+
+            Reconstruction {
+                Repair {
+                    completed -> Inspect;
+                }
+                Inspect { 
+                    upToStandard -> RunwaySafe;
+                    notUpToStandard -> Repair; 
+                }
+            }
+        } 
     }
-  
-    Closed {
-      EmergencyShutdown {
-        crisisResolved -> RunwaySafe;
-      }
-      
-      RunwaySafe {
-        opening -> Open;
-      }
-      
-      Reconstruction {
-          Repair {
-            completed -> Inspect;
-          }
-          Inspect { 
-            upToStandard -> RunwaySafe;
-            notUpToStandard -> Repair; 
-          }
-      }
-    } 
-  }
     direction {
         Undefined {
             [isLatitudinal] -> North;
@@ -375,8 +404,8 @@ class Runway {
 }
 
 class Terminal {
-  * -- 1 Airport;
-  * -> * Passenger;
+    * -- 1 Airport;
+    * -> * Passenger;
 }
 
 // Loadmaster, crew member on cargo aircraft responsible for loading freight and personnel and the weight and balance of the aircraft.
