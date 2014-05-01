@@ -14,7 +14,10 @@ class AviationControlSystem {
         plane.preFlightCheck();
         plane.addFlightPlan(plane.addFlightPlan(acs.getAirport(0), acs.getAirport(1)));
         plane.preFlightCheck();
-        plane.holdingPattern();
+        //System.out.println("main: before plane.takeoff()");
+        //while(!plane.takeoff());
+        //System.out.println("main: after plane.takeoff()");
+        //plane.holdingPattern();
 
         /*AviationControlSystem acs = new AviationControlSystem();
 
@@ -74,8 +77,10 @@ class AirTrafficControl {
                 // TODO
                 // TODO check for runway availability and runway / airport closure
                 if(hasLandingPipeline()) {
+                    //System.out.println("AirTrafficControl.grantClearance " + getLandingPipeline(0).toString());
                     getLandingPipeline(0).grantClearance();
                 } else if(hasTakeoffPipeline()) {
+                    //System.out.println("AirTrafficControl.grantClearance " + getLandingPipeline(0).toString());
                     getTakeoffPipeline(0).grantClearance();
                 }
                 // Cannot directly use a loop because Java will complain about unreachable
@@ -182,13 +187,24 @@ class Plane {
     // TODO it should request AirTrafficControl add the plane to the appropriate pipeline
     public void requestClearance() {
         // takeoff pipeline
-        this.getFlightPlan(0).getAirport(0).getAirTrafficControl().addTakeoffPipeline(this);
-        // TODO landing pipeline
+        if(smFlight == SmFlight.TakeoffPipeline) {
+            System.out.println("plane.requestClearance for TakeoffPipeline");
+            this.getFlightPlan(0).getAirport(0).getAirTrafficControl().addTakeoffPipeline(this);
+        } else if(smFlight == smFlight.LandingPipeline) {
+            System.out.println("plane.requestClearance for LandingPipeline");
+            this.getFlightPlan(0).getAirport(1).getAirTrafficControl().addLandingPipeline(this);
+        }
     }
     // AirTrafficControl can remove the plane from the pipeline
     public void acknowledgeClearance() {
-        this.getFlightPlan(0).getAirport(0).getAirTrafficControl().removeTakeoffPipeline(this);
-        // TODO landing pipeline
+        System.out.println("plane.acknowledgeClearance()");
+        if(smFlight == SmFlight.TakeoffPipeline) {
+            System.out.println("Acknowledge clearance for TakeoffPipeline");
+            this.getFlightPlan(0).getAirport(0).getAirTrafficControl().removeTakeoffPipeline(this);
+        } else if(smFlight == smFlight.LandingPipeline) {
+            System.out.println("Acknowledge clearance for LandingPipeline");
+            this.getFlightPlan(0).getAirport(1).getAirTrafficControl().removeLandingPipeline(this);
+        }
     }
     private boolean hasPassengersAtTerminal() {
         //return getFlightPlan(0).getTerminal(0).hasPassengers();
@@ -205,7 +221,7 @@ class Plane {
         }*/
     }
     // Transfer Passengers from Plane to Terminal
-    private void disembark(int terminal) {
+    private void disembark() {
         /*Terminal awesomeTerminal = getFlightPlan(0).getTerminal(terminal);
           FlightPlan awesomePlan = getFlightPlan(0);
           List<Passenger> morePassengers = awesomePlan.getPassengers();
@@ -264,25 +280,27 @@ class Plane {
                 // TODO replace with AirTrafficControl.acknowledgeClearance(Plane);
                 // 'rotate' is jargon for when an aircraft lifts up from the runway
                 grantClearance() / {
-                    printTransition("transition", "TakeoffPipeline -> Transit");
+                    printTransition("transition", "TakeoffPipeline -> Takeoff");
                 } -> Takeoff;
             }
             Takeoff {
-                // TODO: the expiration period should be a constant defined by AirTrafficControl
-                // or the AviationControlSystem
+                entry / {
+                    printTransition("entering", "Takeoff");
+                }
+                do {
+                    takeoff();
+                }
                 // After 5 minutes permission expires
                 // Must have a guard condition otherwise umple ignores other transitions
                 after(5*60) [true] -> TakeoffPipeline;
-                takeoff() / { acknowledgeClearance(); } -> Transit;
+                takeoff() -> Transit;
+                exit / { acknowledgeClearance(); }
             }
             Transit {
                 entry / {
                     printTransition("entering", "Transit");
                 }
-                // TODO
-                // Add transitions between AirTrafficControllers en route as the aircraft
-                // enters/leaves their airspace
-                holdingPattern() -> LandingPipeline;
+                -> LandingPipeline;
             }
             LandingPipeline {
                 entry / {
@@ -292,18 +310,29 @@ class Plane {
                 grantClearance() -> Land;
             }
             Land {
+                entry / {
+                    printTransition("entering", "Land");
+                }
+                do {
+                    land();
+                }
                 // After 5 minutes permission expires
                 // Must have a guard condition otherwise umple ignores other transitions
                 after(5*60) [true] -> LandingPipeline;
-                land() / { acknowledgeClearance(); } -> Disembark;
+                land() -> Disembark;
+                exit / { acknowledgeClearance(); }
             }
-            // TODO handle Missing In Action / Crash states
+            // CRITICISM: It does not handle Missing In Action / Crash states
             Disembark {
                 entry / {
                     // Any landing you walk away from is a good landing
                     printTransition("entering", "Disembark");
                 }
-                -> Standby;
+                do {
+                    disembark();
+                    done();
+                }
+                done() -> Standby;
                 exit / {
                     // Remove the completed FlightPlan from the queue
                     // TODO: use the sorted directive to make sure flights are sorted by Date
@@ -314,7 +343,6 @@ class Plane {
         }
         Abort {
             entry / {
-                // Any landing you walk away from is a good landing
                 printTransition("entering", "Abort");
             }
         }
