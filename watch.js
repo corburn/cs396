@@ -18,6 +18,7 @@ var sys = require('sys');
 
 // trim path from __filename
 var prgname = __filename.slice(__dirname.length+1,__filename.length);
+console.log(process.argv.slice(2));
 var srcDir = './src';
 var binDir = './bin';
 var umple = 'umple_1.20.0.3845.jar';
@@ -25,9 +26,6 @@ var child;
 
 gaze(['**/*.ump'], function(err, watcher) {
     this.on('all', function(event, filepath) {
-        if(child) {
-            child.kill('SIGINT');
-        }
         var package = filepath.split('/')[filepath.split('/').length - 1].replace(/\..+$/, '').toLowerCase();
         var mainClass = filepath.split('/')[filepath.split('/').length - 1].replace(/\..+$/, '');
         console.log(prgname + ': ' + filepath + ' was modified');
@@ -37,6 +35,7 @@ gaze(['**/*.ump'], function(err, watcher) {
         }
         async.series({
             clean: function(cb) {
+                console.log(prgname + ': clean workspace...');
                 async.parallel([
                     function(callback) {
                         var p = path.join(__dirname, srcDir, package);
@@ -58,7 +57,7 @@ gaze(['**/*.ump'], function(err, watcher) {
             },
             generate: function(cb) {
                 var cmd = 'java -jar ' + umple + ' --path ' + srcDir + ' --generate Java ' + filepath;
-                console.log(prgname + ': generating Java...');
+                console.log(prgname + ': generate Java...');
                 console.log(prgname + ': ' + cmd);
                 var child = exec(cmd, function (err, stdout, stderr) {
                     if (stdout) {
@@ -72,7 +71,7 @@ gaze(['**/*.ump'], function(err, watcher) {
             },
             compile: function(cb) {
                 var cmd = 'javac -classpath ' + srcDir + ' -d ' + binDir + ' ' + srcDir + '/' + package + '/*.java';
-                console.log(prgname + ': compiling...');
+                console.log(prgname + ': compile...');
                 console.log(prgname + ': ' + cmd);
                 var child = exec(cmd, function (err, stdout, stderr) {
                     if (stdout) {
@@ -89,6 +88,10 @@ gaze(['**/*.ump'], function(err, watcher) {
                 var cmd = 'java -classpath ' + binDir + ' ' + package + '.' + mainClass;
                 var args = cmd.split(' ');
                 var bin = args.shift();
+                if(child) {
+                    // Kill the old child process before starting a new one
+                    child.kill('SIGINT');
+                }
                 console.log(prgname + ': running...');
                 console.log(prgname + ': ' + cmd);
                 child = spawn(bin, args);
@@ -99,12 +102,14 @@ gaze(['**/*.ump'], function(err, watcher) {
                 });
 
                 child.stderr.on('data', function (data) {
-                    data += '';
-                    console.log(data.replace('\n', '\nstderr: '));
+                    //data += '';
+                    //console.log(data.replace('\n', '\nstderr: '));
+                    console.log(data);
                 });
 
                 child.on('exit', function (code) {
                     console.log('child process exited with code ' + code);
+                    cb();
                 });
             }
         }, function (err, results) {

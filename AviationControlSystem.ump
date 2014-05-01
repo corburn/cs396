@@ -3,17 +3,23 @@
 namespace aviationcontrolsystem;
 
 class AviationControlSystem {
-    trace airports;
-    
+
     public static void main(String[] args) {
         System.out.println("Initializing Aviation Control System Simulation");
         AviationControlSystem acs = new AviationControlSystem();
         acs.addAirport(new AirTrafficControl());
         acs.addAirport(new AirTrafficControl());
+
+        Plane plane = new Plane();
+        plane.preFlightCheck();
+        plane.addFlightPlan(plane.addFlightPlan(acs.getAirport(0), acs.getAirport(1)));
+        plane.preFlightCheck();
+        plane.holdingPattern();
+
         /*AviationControlSystem acs = new AviationControlSystem();
 
-        AirTrafficControl here = new AirTrafficControl(50, "Here Name", "Here Place", new Pipeline(), new Pipeline());
-        AirTrafficControl there = new AirTrafficControl(50, "There Name", "There Place", new Pipeline(), new Pipeline());
+          AirTrafficControl here = new AirTrafficControl(50, "Here Name", "Here Place", new Pipeline(), new Pipeline());
+          AirTrafficControl there = new AirTrafficControl(50, "There Name", "There Place", new Pipeline(), new Pipeline());
           acs.addAirport(here.getAirport());
           acs.addAirport(there.getAirport());
 
@@ -30,21 +36,7 @@ class AviationControlSystem {
           Passenger dos = new Passenger("Rabbi", 30, hereWeAre, thePlan);
           Passenger tres = new Passenger("Minister", 42, hereWeAre, thePlan);
           Passenger cuatro = new Passenger("StewieGriffin", 1, hereWeAre, thePlan);
-
-
-
-        // TODO
-        // - add pipelines to AirTrafficControl
-        // - Plane adds itself to the takeoff pipeline
-        // - AirTrafficControl state machine sees queue is not empty
-        // - ATC checks all clear and grants clearance
-        // - Plane takes off removing itself from the pipeline and reseting clearance
-        // TODO
-        // Figure out how/when ATC can reset clearance
-
-        // The after() directives launch threads that continue to run after main has finished
-        //System.out.println("End Simulation");
-        //System.exit(0);*/
+          */
     }
     1 -- * Airport;
 }
@@ -76,35 +68,23 @@ class AirTrafficControl {
 
     // Operating range in Nautical Miles
     //immutable int range;
-    queued airspace {
-        // TODO
-        // The intended implementation is that it should idle in the MonitorAirspace state
-        // with a [hasPlanesInPipeline] Guard condition to a pipeline where a single request
-        // is handled before returning to the MonitorAirspace state.
-        // while(hasPlanesInPipeline) {
-        //    handleRequest()
-        // }
+    sm {
         Monitor {
-            entry / {
-                //System.out.println(getAirport().getName() + " Air Traffic Control entering Monitor");
+            do {
+                // TODO
+                // TODO check for runway availability and runway / airport closure
+                if(hasLandingPipeline()) {
+                    getLandingPipeline(0).grantClearance();
+                } else if(hasTakeoffPipeline()) {
+                    getTakeoffPipeline(0).grantClearance();
+                }
+                // Cannot directly use a loop because Java will complain about unreachable
+                // code Thread.sleep(1)
+                loop();
             }
-            // Handle each request until the pipeline is empty
-            //[getPipeline(0).hasPlanes()] -> TakeoffPipeline;
-            //requestTakeoffClearance() -> TakeoffPipeline;
-            //[getPipeline(1).hasPlanes()] -> LandingPipeline;
-            //requestLandingClearance() -> LandingPipeline;
-        }
-        TakeoffPipeline {
-            entry / {
-                //System.out.println(getAirport().getName() + " Air Traffic Control entering TakeoffPipeline");
-            }
-            -> Monitor;
-        }
-        LandingPipeline {
-            entry / {
-                //System.out.println(getAirport().getName() + " Air Traffic Control entering LandingPipeline");
-            }
-            -> Monitor;
+            // Must have a state transition otherwise umple will generate invalid code.
+            // It will call an undefined exitMonitor() method.
+            loop -> Monitor;
         }
     }
 }
@@ -130,7 +110,7 @@ class Captain {
 // It is assumed
 // - FlightPlans are sorted by date
 // - FlightPlans are valid
-// Based on (FAA) Domestic Flight Plan Form 7233-1
+// Based on (FAA) Domestic Flight Plan Form 7233-1.
 // registration, color, aircraft type, special equipment, and fuelOnBoard
 // can be obtained from the Plane object
 class FlightPlan {
@@ -183,11 +163,10 @@ class Plane {
     //flightCode = registration;
     // Defaults to flight code but may be reassigned by Air Traffic Control
     //defaulted callsign = flightCode;
-    // Gallons of fuel in the tanks
     // TODO fuel min / max guards
     // Cannot have negative fuel or exceed capacity
     // TODO define fuel capacity
-    // Amount of fuel on board the aircraft in minutes
+    // Amount of fuel on board the aircraft in flight minute units
     lazy int fuelOnBoard;
     lazy boolean isEmergency;
     // Weather deposits ice on the control surfaces
@@ -197,14 +176,19 @@ class Plane {
     // A crude function to print the entry, action, and exit state transitions
     private void printTransition(String event, String state) {
         //System.out.println("Flight " + getCallsign() + " " + event + " " + state);
+        System.out.println(toString() + " " + event + " " + state);
     }
 
     // TODO it should request AirTrafficControl add the plane to the appropriate pipeline
     public void requestClearance() {
+        // takeoff pipeline
+        this.getFlightPlan(0).getAirport(0).getAirTrafficControl().addTakeoffPipeline(this);
+        // TODO landing pipeline
     }
     // AirTrafficControl can remove the plane from the pipeline
     public void acknowledgeClearance() {
-        // TODO
+        this.getFlightPlan(0).getAirport(0).getAirTrafficControl().removeTakeoffPipeline(this);
+        // TODO landing pipeline
     }
     private boolean hasPassengersAtTerminal() {
         //return getFlightPlan(0).getTerminal(0).hasPassengers();
@@ -213,12 +197,12 @@ class Plane {
     // Transfer Passengers from Terminal to Plane
     private void board() {
         /*FlightPlan plan = getFlightPlan(0);
-          Terminal terminal = plan.getTerminal(0);
-          List<Passenger> passengers = terminal.getPassengers();
-          for(Passenger passenger : passengers) {
-          plan.addPassenger(passenger);
-          terminal.removePassenger(passenger);
-          }*/
+        Terminal terminal = plan.getTerminal(0);
+        List<Passenger> passengers = terminal.getPassengers();
+        for(Passenger passenger : passengers) {
+            plan.addPassenger(passenger);
+            terminal.removePassenger(passenger);
+        }*/
     }
     // Transfer Passengers from Plane to Terminal
     private void disembark(int terminal) {
@@ -240,24 +224,19 @@ class Plane {
                 entry / {
                     printTransition("entering", "Standby");
                 }
-                // TODO: add has FlightPlan *today* Guard
-                // Verify valid FlightPlan and plane is at the first airport
-                [hasFlightPlans()] -> PreFlight;
-                [!hasFlightPlans()] -> Standby;
-            }
-            PreFlight {
-                entry / {
-                    printTransition("entering", "PreFlight");
-                }
-                preFlightCheck() [!hasPassengersAtTerminal()] -> TakeoffPipeline;
+                preFlightCheck() [!hasFlightPlans()] / { System.out.println(this.toString() + " cannot proceed hasFlightPlans: " + this.hasFlightPlans()); } -> Standby;
                 preFlightCheck() [hasPassengersAtTerminal()] -> Board;
+                preFlightCheck() [!hasPassengersAtTerminal()] -> TakeoffPipeline;
             }
             Board {
                 entry / {
                     printTransition("entering", "Board");
-                    board();
                 }
-                -> TakeoffPipeline;
+                do {
+                    board();
+                    done();
+                }
+                done() -> TakeoffPipeline;
             }
             TakeoffPipeline {
                 entry / {
@@ -292,7 +271,8 @@ class Plane {
                 // TODO: the expiration period should be a constant defined by AirTrafficControl
                 // or the AviationControlSystem
                 // After 5 minutes permission expires
-                after(5*60) -> TakeoffPipeline;
+                // Must have a guard condition otherwise umple ignores other transitions
+                after(5*60) [true] -> TakeoffPipeline;
                 takeoff() / { acknowledgeClearance(); } -> Transit;
             }
             Transit {
@@ -302,7 +282,7 @@ class Plane {
                 // TODO
                 // Add transitions between AirTrafficControllers en route as the aircraft
                 // enters/leaves their airspace
-                -> LandingPipeline;
+                holdingPattern() -> LandingPipeline;
             }
             LandingPipeline {
                 entry / {
@@ -313,7 +293,8 @@ class Plane {
             }
             Land {
                 // After 5 minutes permission expires
-                after(5*60) -> LandingPipeline;
+                // Must have a guard condition otherwise umple ignores other transitions
+                after(5*60) [true] -> LandingPipeline;
                 land() / { acknowledgeClearance(); } -> Disembark;
             }
             // TODO handle Missing In Action / Crash states
@@ -333,8 +314,8 @@ class Plane {
         }
         Abort {
             entry / {
-                    // Any landing you walk away from is a good landing
-                    printTransition("entering", "Abort");
+                // Any landing you walk away from is a good landing
+                printTransition("entering", "Abort");
             }
         }
     }
